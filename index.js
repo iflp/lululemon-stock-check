@@ -2,7 +2,7 @@ const http = require('http');
 const fetch = require('node-fetch');
 const pMap = require('p-map');
 
-const hostname = '0.0.0.0';
+const hostname = process.env.HOST || '127.0.0.1';
 const port = process.env.PORT || 8080;
 
 const server = http.createServer(async (req, res) => {
@@ -18,8 +18,8 @@ const server = http.createServer(async (req, res) => {
   const productInfoUrl = (pid) =>
     `https://www.lululemon.com.au/on/demandware.store/Sites-AU-Site/en_AU/Product-Variation?pid=${pid}`;
 
-  const categoryUrl = (category, count = 1000) =>
-    `https://www.lululemon.com.au/on/demandware.store/Sites-AU-Site/en_AU/Search-UpdateGrid?cgid=${category}&start=0&sz=${count}`;
+  const categoryUrl = (category) =>
+    `https://www.lululemon.com.au/on/demandware.store/Sites-AU-Site/en_AU/Search-UpdateGrid?cgid=${category}&start=0&sz=${1000}`;
 
   const categoryUrlArray = categoriesToScrape.map(categoryUrl);
 
@@ -34,6 +34,7 @@ const server = http.createServer(async (req, res) => {
   };
 
   const pidArray = (await pMap(categoryUrlArray, pidArrMapper, { concurrency: 100 })).flat();
+  console.log(pidArray);
   const productInfoUrlArray = pidArray.map(productInfoUrl);
 
   const pInfoMapper = async (site) => {
