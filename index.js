@@ -2,7 +2,7 @@ const http = require('http');
 const fetch = require('node-fetch');
 const pMap = require('p-map');
 
-const hostname = '127.0.0.1';
+const hostname = '0.0.0.0';
 const port = process.env.PORT || 8080;
 
 const server = http.createServer(async (req, res) => {
