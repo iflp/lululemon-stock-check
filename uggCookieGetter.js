@@ -1,7 +1,7 @@
 const parser = require('shift-parser');
 const fetch = require('node-fetch');
 const atob = require('atob');
-const getUggCookie = async () => {
+const _getUggCookie = async () => {
   const headers = {
     'user-agent':
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.129 Safari/537.36',
@@ -15,8 +15,6 @@ const getUggCookie = async () => {
   const token = text.substring(text.lastIndexOf('token=') + 6, text.lastIndexOf('"></script>'));
 
   const KP_UIDzCookie = site.headers.get('set-cookie').split(' ')[0];
-  //   console.dir(token, { depth: 10, colors: true });
-  //   console.log(KP_UIDzCookie);
 
   const fpPayload = await fetch(
     `https://au.ugg.com/149e9513-01fa-4fb0-aad4-566afd725d1b/2d206a39-8ed7-437e-a3be-862e0f06eea3/fingerprint/script/kpf.js?url=/149e9513-01fa-4fb0-aad4-566afd725d1b/2d206a39-8ed7-437e-a3be-862e0f06eea3/fingerprint&token=${token}`,
@@ -24,24 +22,59 @@ const getUggCookie = async () => {
   ).then((e) => e.text());
 
   const script = parser.parseScript(fpPayload);
-  const keywordArr = script.statements[4].declaration.declarators[0].init.elements.map(
+  let index = null;
+  const keywordArrs = script.statements.filter((e,i) => {
+    const isKeywordArr = e.type === 'VariableDeclarationStatement' && e.declaration.declarators[0].init.type === 'ArrayExpression';
+    if (isKeywordArr) {
+      index = i;
+    }
+
+    return isKeywordArr;
+  });
+  const keywordArr = keywordArrs[0].declaration.declarators[0].init.elements.map(
     (e) => e.value
   );
 
   //Array is offset by a dynamically generated value;
-  const keywordArrayOffset = script.statements[5].expression.arguments[1].value + 1; //+1 is a magic number by the minifier
+  const keywordArrayOffset = script.statements[index+1].expression.arguments[1].value + 1; //+1 is a magic number by the minifier
 
   const goodKeywordArr = correctlyOffsetKeywordArr(keywordArr, keywordArrayOffset);
 
-  //need to get the 15 hashes array.
-  const arr = script.statements[8].expression.operand.callee.body.statements[12];
-  const hashesArr = getProperBranch(arr).map((e) => {
-    if (typeof e !== 'string') {
-      return testCase(goodKeywordArr[e[0]], e[1]);
-    } else {
-      return e;
+  const a =
+    script.statements[script.statements.length - 1].expression.operand.callee.body.statements;
+
+  //we want to look for a function declaration with 11 parameters, that's the function we're after
+  const fnWithHashes = a.filter((e) => e.params && e.params.items.length === 11)[0];
+  const nodeArr = fnWithHashes.body.statements;
+  if (!nodeArr) throw new Error("Can't find hashes array");
+
+  function parseNode(node) {
+    switch (node.type) {
+      case 'ExpressionStatement':
+        if (node.expression.type !== 'AssignmentExpression') return null;
+
+        if (node.expression.binding.expression.type === 'LiteralStringExpression') {
+          return node.expression.binding.expression.value;
+        } else if (node.expression.binding.expression.type === 'CallExpression') {
+          const ex = node.expression.binding.expression;
+          return testCase(goodKeywordArr[ex.arguments[0].value - 0], ex.arguments[1].value);
+        }
+        break;
+      case 'IfStatement':
+        if (node.alternate && node.alternate.block.statements.length > 11) {
+          return node.alternate.block.statements.map(parseNode).filter((e) => e !== null);
+        } else if (node.consequent.block) {
+          return node.consequent.block.statements.map(parseNode).filter((e) => e !== null);
+        }
+      case 'VariableDeclarationStatement':
+      default:
+        return null;
     }
-  });
+  }
+  const hashesArr = nodeArr
+    .map(parseNode)
+    .filter((e) => e !== null)
+    .flat();
 
   const payload = {
     t: token,
@@ -79,7 +112,16 @@ const getUggCookie = async () => {
     }
   );
 
-  return fp.headers.get('set-cookie').split(' ')[0];
+  const cookie = fp.headers
+    .get('set-cookie')
+    .split(' ')
+    .find((e) => e.includes('sdf='));
+
+  if (!cookie) {
+    console.log(fpPayload);
+  }
+
+  return cookie;
 };
 
 //
@@ -91,37 +133,6 @@ const correctlyOffsetKeywordArr = (keywordArr, offset) => {
   }
 
   return _keywordArr;
-};
-
-const getProperBranch = (node) => {
-  //The nodes sometimes are different because of the minification - brute force here to get the correct one
-  let _properArr = [];
-  if (node.body.statements[0].type === 'IfStatement') {
-    const _ifBlock = node.body.statements[0];
-
-    if (_ifBlock.consequent.block.statements.length >= 10) {
-      _properArr = _ifBlock.consequent.block.statements;
-    } else if (_ifBlock.alternate.block.statements.length >= 10) {
-      _properArr = _ifBlock.alternate.block.statements;
-    } else {
-      console.dir(_ifBlock, { depth: 3, colors: true });
-    }
-  } else {
-    _properArr = node.body.statements;
-  }
-
-  return _properArr
-    .filter((e) => e.type === 'ExpressionStatement')
-    .map((e) => e.expression)
-    .filter((e) => e.type === 'AssignmentExpression')
-    .map((e) => e.binding.expression)
-    .map((e) => {
-      if (e.type === 'LiteralStringExpression') {
-        return e.value;
-      } else if (e.type === 'CallExpression') {
-        return [e.arguments[0].value - 0, e.arguments[1].value];
-      }
-    });
 };
 
 //deobfuscation function copied from source
@@ -168,6 +179,37 @@ const testCase = function (data, fn) {
   }
 
   return testResult;
+};
+
+const getUggCookie = async () => {
+  let cookie = await _getUggCookie();
+
+  if (!cookie) {
+    console.log('retry 1');
+    cookie = await _getUggCookie();
+  }
+
+  if (!cookie) {
+    console.log('retry 2');
+    cookie = await _getUggCookie();
+  }
+
+  if (!cookie) {
+    console.log('retry 3');
+    cookie = await _getUggCookie();
+  }
+
+  if (!cookie) {
+    console.log('retry 4');
+    cookie = await _getUggCookie();
+  }
+
+  if (!cookie) {
+    console.log('retry 5');
+    cookie = await _getUggCookie();
+  }
+
+  return cookie;
 };
 
 module.exports = {

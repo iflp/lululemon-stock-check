@@ -1,5 +1,4 @@
 const pMap = require('p-map');
-const fetch = require('node-fetch');
 const { categoryUrl, pidArrMapper, productInfoUrl, pInfoMapper } = require('./scraper');
 const { getUggCookie } = require('./uggCookieGetter');
 const CONCURRENT_REQUEST_LIMIT = 100;
@@ -9,6 +8,7 @@ function chunkArrayInGroups(arr, size) {
   for (var i = 0; i < arr.length; i += size) {
     myArray.push(arr.slice(i, i + size));
   }
+
   return myArray;
 }
 
@@ -43,7 +43,7 @@ const uggController = async (req, res) => {
   const makeProductInfoUrl = productInfoUrl(ugg.rootUrl, ugg.productInfoUrl);
   const pInfoUrlArr = pidArr.map(makeProductInfoUrl);
   //split big array into chunks and use a new cookie, to query
-  const pInfoUrlArrArr = chunkArrayInGroups(pInfoUrlArr, 100);
+  const pInfoUrlArrArr = chunkArrayInGroups(pInfoUrlArr, 50);
 
   const pInfoArr = [];
   for (let i = 0; i < pInfoUrlArrArr.length; i++) {
@@ -72,7 +72,7 @@ const uggController = async (req, res) => {
   const items = new Map();
 
   for (let i = 0; i < cleanPInfoArr.length; i++) {
-    const thumbnailUrl = `${ugg.rootUrl}${cleanPInfoArr[i].variationAttributes[0].values[0].images.swatch[0].url}`;
+    const thumbnailUrl = `${ugg.rootUrl}/dw/image/v2/BDFS_PRD${cleanPInfoArr[i].variationAttributes[0].values[0].images.swatch[0].url}`;
     if (!items.has(cleanPInfoArr[i].productName)) {
       items.set(cleanPInfoArr[i].productName, {
         selectedProductUrl: `${ugg.rootUrl}${cleanPInfoArr[i].selectedProductUrl}`,
