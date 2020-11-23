@@ -23,6 +23,10 @@ const lllmController = async (req, res) => {
 };
 
 const HTMLRowMapper = (headers, rootUrl) => async (productJson) => {
+  if (productJson.error) {
+    return `<tr><td>Error</td><td>Error</td><td>Error</td>
+      <td>Error</td></tr>`;
+  }
   const pageLink = `${rootUrl}${productJson.product.selectedProductUrl}`;
   const listItemArray = await pMap(
     productJson.product.variationAttributes[0].values,
@@ -45,14 +49,20 @@ const HTMLRowMapper = (headers, rootUrl) => async (productJson) => {
 const colorMapper = (headers, rootUrl) => async (productColorValues) => {
   if (!productColorValues.selectable) return '';
 
-  const stockResponse = await fetch(productColorValues.url, { headers }).then((e) => e.json());
-  const stockArray = stockResponse.product.variationAttributes[1].values.map(mapSizesReturnString);
+  // const stockResponse = await fetch(productColorValues.url, { headers }).then((e) => e.json());
+  const rawResponse = await fetch(productColorValues.url, { headers });
 
-  return `<li><img src="${
-    productColorValues.images.swatch[0].url
-  }" style="border: 1px solid black; width: 32px; height: 32px" /> ${
-    productColorValues.displayValue
-  } - ${stockArray.join(',')} </li>`;
+  try {
+    const stockResponse =  await rawResponse.json();
+    const stockArray = stockResponse.product.variationAttributes[1].values.map(mapSizesReturnString);
+    return `<li><img src="${
+      productColorValues.images.swatch[0].url
+    }" style="border: 1px solid black; width: 32px; height: 32px" /> ${
+      productColorValues.displayValue
+    } - ${stockArray.join(',')} </li>`;
+  } catch (e) {
+  return `<li><img src="" style="border: 1px solid black; width: 32px; height: 32px" /> Error </li>`;
+  }
 };
 
 const mapSizesReturnString = (sizeValue) => {

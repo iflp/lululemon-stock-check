@@ -39,8 +39,14 @@ const pidArrMapper = (headers) => async (url) => {
 };
 
 const pInfoMapper = (headers) => async (url) => {
-  const productInfoResponse = await fetch(url, { headers }).then((e) => e.json());
-  return productInfoResponse;
+  try {
+    const productInfoResponse = await fetch(url, { headers }).then((e) => e.json());
+    return productInfoResponse;
+  } catch(e) {
+    return {error: 'error'};
+  }
+  
+
 };
 
 /**
