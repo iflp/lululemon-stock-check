@@ -28,22 +28,31 @@ const HTMLRowMapper = (headers, rootUrl) => async (productJson) => {
       <td>Error</td></tr>`;
   }
   const pageLink = `${rootUrl}${productJson.product.selectedProductUrl}`;
-  const listItemArray = await pMap(
-    productJson.product.variationAttributes[0].values,
-    colorMapper(headers, rootUrl),
-    {
-      concurrency: 5,
-    }
-  );
+  try {
+    const listItemArray = await pMap(
+      productJson.product.variationAttributes[0].values,
+      colorMapper(headers, rootUrl),
+      {
+        concurrency: 5,
+      }
+    );
+  
+    return `<tr><td><a href="${pageLink}" target="_blank">${
+      productJson.product.productName
+    }</a></td><td>${
+      productJson.product.price.sales ? productJson.product.price.sales.formatted : '-'
+    }</td><td>${productJson.product.price.list ? productJson.product.price.list.formatted : '-'}</td>
+      <td><ul>
+      ${listItemArray.join('')}
+      </ul></td></tr>`;
+  } catch (e) {
+    return `<tr><td>${productJson.product.productName}</a></td><td>Error</td><td>Error</td>
+      <td><ul>
+      Error
+      </ul></td></tr>`
+    
+  }
 
-  return `<tr><td><a href="${pageLink}" target="_blank">${
-    productJson.product.productName
-  }</a></td><td>${
-    productJson.product.price.sales ? productJson.product.price.sales.formatted : '-'
-  }</td><td>${productJson.product.price.list ? productJson.product.price.list.formatted : '-'}</td>
-    <td><ul>
-    ${listItemArray.join('')}
-    </ul></td></tr>`;
 };
 
 const colorMapper = (headers, rootUrl) => async (productColorValues) => {
