@@ -5,11 +5,18 @@ const _getUggCookie = async () => {
   const headers = {
     'user-agent':
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.129 Safari/537.36',
+    accept:
+      'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+    'accept-encoding': 'gzip, deflate, br',
+    'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
   };
 
-  const site = await fetch('https://au.ugg.com', {
-    headers,
-  });
+  const site = await fetch(
+    'https://au.ugg.com/149e9513-01fa-4fb0-aad4-566afd725d1b/2d206a39-8ed7-437e-a3be-862e0f06eea3/fp',
+    {
+      headers,
+    }
+  );
 
   const text = await site.text();
   const token = text.substring(text.lastIndexOf('token=') + 6, text.lastIndexOf('"></script>'));
@@ -23,23 +30,23 @@ const _getUggCookie = async () => {
 
   const script = parser.parseScript(fpPayload);
   let index = null;
-  const keywordArrs = script.statements.filter((e,i) => {
-    const isKeywordArr = e.type === 'VariableDeclarationStatement' && e.declaration.declarators[0].init.type === 'ArrayExpression';
+  const keywordArrs = script.statements.filter((e, i) => {
+    const isKeywordArr =
+      e.type === 'VariableDeclarationStatement' &&
+      e.declaration.declarators[0].init.type === 'ArrayExpression';
     if (isKeywordArr) {
       index = i;
     }
 
     return isKeywordArr;
   });
-  const keywordArr = keywordArrs[0].declaration.declarators[0].init.elements.map(
-    (e) => e.value
-  );
+  const keywordArr = keywordArrs[0].declaration.declarators[0].init.elements.map((e) => e.value);
 
   //Array is offset by a dynamically generated value;
-  const keywordArrayOffset = script.statements[index+1].expression.arguments[1].value + 1; //+1 is a magic number by the minifier
+  const keywordArrayOffset = script.statements[index + 1].expression.arguments[1].value + 1; //+1 is a magic number by the minifier
 
   const goodKeywordArr = correctlyOffsetKeywordArr(keywordArr, keywordArrayOffset);
-
+  console.log(goodKeywordArr);
   const a =
     script.statements[script.statements.length - 1].expression.operand.callee.body.statements;
 

@@ -6,10 +6,12 @@ const { lllmController } = require('./lululemon');
 const { uggController } = require('./ugg');
 
 const hostname = process.env.HOST || '127.0.0.1';
-const port = process.env.PORT || 8080;
+const port = process.env.PORT || 8090;
 
 router.on('GET', '/', async (req, res) => {
-  res.end('<div><a href="/lululemon">lululemon</a></div><div><a href="/ugg">ugg</a></div>');
+  res.end(
+    '<div><a href="/lululemon">lululemon</a></div><div><a href="/ugg?type=women">ugg women</a></div><div><a href="/ugg?type=men">ugg men</a></div><div><a href="/ugg?type=kids">ugg kids</a></div>'
+  );
 });
 router.on('GET', '/lululemon', lllmController);
 router.on('GET', '/ugg', uggController);

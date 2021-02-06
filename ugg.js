@@ -2,6 +2,7 @@ const pMap = require('p-map');
 const { categoryUrl, pidArrMapper, productInfoUrl, pInfoMapper } = require('./scraper');
 const { getUggCookie } = require('./uggCookieGetter');
 const CONCURRENT_REQUEST_LIMIT = 100;
+const url = require('url');
 
 function chunkArrayInGroups(arr, size) {
   var myArray = [];
@@ -14,12 +15,11 @@ function chunkArrayInGroups(arr, size) {
 
 const uggController = async (req, res) => {
   //Each NM()sdf cookie is good for about 200 requests, farm 10 cookies and chuck it into an array.
-
   const ugg = {
     rootUrl: 'https://au.ugg.com',
     productInfoUrl: '/on/demandware.store/Sites-au-ugg-Site/en_AU/Product-Variation',
     categoryUrl: '/on/demandware.store/Sites-au-ugg-Site/en_AU/Search-UpdateGrid',
-    categories: ['women-shop_all', 'kids-shop_all'],
+    categories: { women: 'women-shop_all', men: 'men-shop_all', kids: 'kids-shop_all' },
     headers: {
       'user-agent':
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.129 Safari/537.36',
@@ -27,12 +27,14 @@ const uggController = async (req, res) => {
     },
   };
 
+  const queryObject = url.parse(req.url, true).query;
+  const categoryToScrape = ugg.categories[queryObject.type];
+
   //   let cookiePromiseArray = new Array(10).fill(null).map((e) => getUggCookie());
   //   const cookieArray = await Promise.all(cookiePromiseArray);
 
-  const categoriesToScrape = ugg.categories;
   const makeCategoryUrl = categoryUrl(ugg.rootUrl, ugg.categoryUrl);
-  const categoryUrlArr = categoriesToScrape.map(makeCategoryUrl);
+  const categoryUrlArr = [makeCategoryUrl(categoryToScrape)];
 
   const pidArr = (
     await pMap(categoryUrlArr, pidArrMapper(ugg.headers), {
